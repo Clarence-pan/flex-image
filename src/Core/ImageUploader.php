@@ -60,19 +60,19 @@ class ImageUploader
 
             $extName = ImageUtils::getFileExt($file['name']);
             if (!in_array($extName, $this->allowedFileExtNames)) {
-                throw new ImageException('您上传的图片格式不支持，请上传 '.implode(', ', $this->allowedFileExtNames).' 格式的图片。');
-            }
-
-            if (!empty($file['error'])) {
-                throw new ImageException('上传出错，错误码: '.$file['error'], 410);
+                throw new ImageException('您上传的图片格式不支持，请上传 ' . implode(', ', $this->allowedFileExtNames) . ' 格式的图片。');
             }
 
             if ($file['size'] > $this->maxFileSize) {
-                throw new ImageException('您上传的图片太大了', 412);
+                throw new ImageException('您上传的图片太大了，请换个小一点的。', 412);
+            }
+
+            if (!empty($file['error'])) {
+                throw new ImageException($this->getPhpFileErrorMessage($file['error']), 430);
             }
 
             if (!is_uploaded_file($file['tmp_name'])) {
-                throw new ImageException('上传的图片文件找不到了', 411);
+                throw new ImageException('囧，上传的图片文件找不到了，请稍后再试或联系管理员。', 411);
             }
 
             $this->uploadedImages[] = [
@@ -103,9 +103,9 @@ class ImageUploader
         foreach ($this->uploadedImages as &$uploadedImage) {
             // 分配上传文件的路径，并移动位置
             $uploadedImage['path'] = $this->allocUploadImagePath($this->siteBaseDir, [$this->uploadDir, $this->dir], $uploadedImage['extName']);
-            $uploadedImage['fullPath'] = $this->siteBaseDir.$uploadedImage['path'];
+            $uploadedImage['fullPath'] = $this->siteBaseDir . $uploadedImage['path'];
             if ($this->imageHost) {
-                $uploadedImage['fullUrl'] = 'http://'.$this->imageHost.$uploadedImage['path'];
+                $uploadedImage['fullUrl'] = 'http://' . $this->imageHost . $uploadedImage['path'];
             }
 
             if (move_uploaded_file($uploadedImage['tempFile'], $uploadedImage['fullPath']) === false) {
@@ -228,15 +228,15 @@ class ImageUploader
     protected function allocUploadImagePath($baseDir, $middlePaths, $fileExtName = '.jpg')
     {
         $baseDir = rtrim($baseDir, '/');
-        $filePathPrefix = '/'.implode('/', array_filter(array_map(function ($s) {
+        $filePathPrefix = '/' . implode('/', array_filter(array_map(function ($s) {
                 return trim($s, '/');
-            }, (array) $middlePaths)))
-            .'/'.date('Ymd').'/'.date('His');
+            }, (array)$middlePaths)))
+            . '/' . date('Ymd') . '/' . date('His');
 
         for ($tryTimes = 3; $tryTimes > 0; --$tryTimes) {
-            $filePath = $filePathPrefix.$this->quickRandomString(6).$fileExtName;
-            if (!is_file($baseDir.$filePath)) {
-                $fileDir = dirname($baseDir.$filePath);
+            $filePath = $filePathPrefix . $this->quickRandomString(6) . $fileExtName;
+            if (!is_file($baseDir . $filePath)) {
+                $fileDir = dirname($baseDir . $filePath);
                 if (!is_dir($fileDir)) {
                     mkdir($fileDir, 0777, true);
                 }
@@ -366,6 +366,25 @@ class ImageUploader
                 'width' => $matches['width'],
                 'height' => $matches['height'],
             ];
+        }
+    }
+
+    protected function getPhpFileErrorMessage($errorCode)
+    {
+        switch ($errorCode) {
+            case UPLOAD_ERR_INI_SIZE:
+            case UPLOAD_ERR_FORM_SIZE:
+                return '您上传的文件太大了！请选择一个小一点的文件。';
+            case UPLOAD_ERR_PARTIAL:
+                return '网络似乎不太好，文件上传不完整，请重试。';
+            case UPLOAD_ERR_NO_FILE:
+                return '服务器没有收到文件~';
+            case UPLOAD_ERR_NO_TMP_DIR:
+                return '服务器没有地方可以放您上传的文件，请联系管理员。';
+            case UPLOAD_ERR_CANT_WRITE:
+                return '服务器保存上传的文件失败，请联系管理员处理。';
+            default:
+                return '网络似乎不太好，请稍后再试（内部错误代码：' . $errorCode . '）。';
         }
     }
 }
