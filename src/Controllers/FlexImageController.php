@@ -32,11 +32,11 @@ class FlexImageController extends Controller
      */
     public function resizeImage($filePath)
     {
-        if (!preg_match('#'.
-            '^(?<baseName>.*)'.
-            '_(?<width>\d+)x(?<height>\d+)'.
-            '(_c(?<crop>\d+))?'.
-            '\.(?<extName>'.implode('|', $this->getSupportedImageTypes()).')'.
+        if (!preg_match('#' .
+            '^(?<baseName>.*)' .
+            '_(?<width>\d+)x(?<height>\d+)' .
+            '(_c(?<crop>\d+))?' .
+            '\.(?<extName>' . implode('|', $this->getSupportedImageTypes()) . ')' .
             '#i', $filePath, $matches)
         ) {
             return $this->responseFactory->make('Image Not Found', 404);
@@ -89,6 +89,12 @@ class FlexImageController extends Controller
                         'maxFileSize' => $this->app['config']['flex_image.max_upload_size'],
                         'uploadDir' => $this->imageServer->getUploadDir(),
                         'siteBaseDir' => $this->imageServer->getSiteBaseDir(),
+                        'shortcutFile' => function ($file) {
+                            return $this->imageServer->getSameFile($file);
+                        },
+                        'onFileSaved' => function($file){
+                            return $this->imageServer->updateCachedFile($file);
+                        }
                     ]);
 
                     $imgInfo = $uploader->capture()->save();
@@ -133,7 +139,7 @@ class FlexImageController extends Controller
         }
 
         if (is_null($imageSizes)) {
-            $imageSizes = array_flip((array) $this->app['config']['flex_image.image_sizes']);
+            $imageSizes = array_flip((array)$this->app['config']['flex_image.image_sizes']);
         }
 
         return is_array($imageSizes) && isset($imageSizes["{$width}x{$height}"]);

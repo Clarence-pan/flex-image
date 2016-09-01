@@ -66,4 +66,26 @@ final class ImageUtils
             return false;
         }
     }
+
+    /**
+     * 判断字符串是否是以特定子串开头
+     * @param string            $haystack
+     * @param string|array      $needles
+     * @param bool|false $caseInsensitivity
+     * @return bool
+     */
+    public static function strStartsWith($haystack, $needles, $caseInsensitivity=false)
+    {
+        $haystackLen = strlen($haystack);
+
+        foreach ((array)$needles as $needle) {
+            $needleLen = strlen($needle);
+            if (($needleLen === 0 && $haystackLen === 0)
+                || ($needleLen <= $haystackLen && substr_compare($haystack, $needle, 0, $needleLen, $caseInsensitivity) === 0)){
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -2,6 +2,8 @@
 
 namespace FlexImage\Core;
 
+use Illuminate\Support\Str;
+
 class ImageUploader
 {
     // 外部参数，通过请求中的参数来控制
@@ -20,6 +22,8 @@ class ImageUploader
     protected $uploadDir;   // 上传的目录(相对于siteBaseDir)
     protected $maxFileSize = 2097152; // 最大文件大小，以字节为单位 (默认2M)
     protected $allowedFileExtNames = ['.png', '.jpg', '.jpeg', '.gif'];
+    protected $shortcutFile = null; // 极速秒传文件 -- 即使用缓存中的文件
+    protected $onFileSaved = null; // 保存文件后的回调处理
 
     // 内部存储
     protected $uploadedImages;
@@ -101,19 +105,34 @@ class ImageUploader
         }
 
         foreach ($this->uploadedImages as &$uploadedImage) {
-            // 分配上传文件的路径，并移动位置
-            $uploadedImage['path'] = $this->allocUploadImagePath($this->siteBaseDir, [$this->uploadDir, $this->dir], $uploadedImage['extName']);
-            $uploadedImage['fullPath'] = $this->siteBaseDir . $uploadedImage['path'];
-            if ($this->imageHost) {
+            // 判断是否可以极速秒传
+            if (!$this->willClipCrop()
+                && $this->shortcutFile
+                && ($shortcut = call_user_func($this->shortcutFile, $uploadedImage['tempFile']))
+                && ImageUtils::strStartsWith($shortcut, $this->siteBaseDir) ){
+                $uploadedImage['path'] = substr($shortcut, strlen($this->siteBaseDir));
+                $uploadedImage['fullPath'] = $shortcut;
+            }  else {
+                // 分配上传文件的路径，并移动位置
+                $uploadedImage['path'] = $this->allocUploadImagePath($this->siteBaseDir, [$this->uploadDir, $this->dir], $uploadedImage['extName']);
+                $uploadedImage['fullPath'] = $this->siteBaseDir . $uploadedImage['path'];
+
+                if (move_uploaded_file($uploadedImage['tempFile'], $uploadedImage['fullPath']) === false) {
+                    throw new ImageException('图片文件无法移动位置！', 515);
+                }
+
+                // 裁剪，缩放，优化等
+                $this->clipCropAndOptimize($uploadedImage['fullPath']);
+
+                // 通知保存成功
+                if ($this->onFileSaved){
+                    call_user_func($this->onFileSaved, $uploadedImage['fullPath']);
+                }
+            }
+
+            if ($this->imageHost){
                 $uploadedImage['fullUrl'] = 'http://' . $this->imageHost . $uploadedImage['path'];
             }
-
-            if (move_uploaded_file($uploadedImage['tempFile'], $uploadedImage['fullPath']) === false) {
-                throw new ImageException('图片文件无法移动位置！', 515);
-            }
-
-            // 裁剪，缩放，优化等
-            $this->clipCropAndOptimize($uploadedImage['fullPath']);
 
             // 为了保护服务器的隐私，不要暴露全路径
             unset($uploadedImage['tempFile']);
@@ -151,6 +170,14 @@ class ImageUploader
         }
 
         return $this;
+    }
+
+    /**
+     * @return bool 判断是否需要裁剪
+     */
+    protected function willClipCrop()
+    {
+        return $this->rotate || $this->clipRect || $this->thumbSize;
     }
 
     /**
