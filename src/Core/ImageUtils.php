@@ -88,4 +88,34 @@ final class ImageUtils
 
         return false;
     }
+
+
+    /**
+     * 快速生成一个随机字符串.
+     *
+     * @param int $length
+     *
+     * @return string
+     */
+    public static function quickRandomString($length = 16)
+    {
+        return substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyz', $length)), 0, $length);
+    }
+
+    /**
+     * @param $baseDir
+     * @param $filePath
+     * @return bool|string 相对路径
+     */
+    public static function relativePath($baseDir, $filePath)
+    {
+        $baseDirLen = strlen($baseDir);
+        $filePathLen = strlen($filePath);
+
+        if ($filePathLen >= $baseDirLen && strncmp($baseDir, $filePath, $baseDirLen) === 0){
+            return substr($filePath, $baseDirLen);
+        } else {
+            return false;
+        }
+    }
 }

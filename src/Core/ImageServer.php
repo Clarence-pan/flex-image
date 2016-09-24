@@ -8,27 +8,34 @@ use Illuminate\Support\Str;
 class ImageServer
 {
     protected $app;
+    protected $config;
     protected $host;
     protected $uploadDir = 'uploads';
     protected $cache = 'cache';
     protected $cacheKeyPrefix = 'image_server:';
     protected $siteBaseDir;
+    protected $enabledStorage;
+    protected $defaultStorage;
 
     public function __construct(Container $app, $attributes = [])
     {
         $this->app = $app;
+        $this->config = $this->app['config']['flex_image'];
 
         foreach ($attributes as $key => $val) {
             $this->{$key} = $val;
         }
 
         if (!isset($this->host)) {
-            $this->host = $this->app['config']['flex_image.img_server_host'];
+            $this->host = @$this->config['img_server_host'];
         }
 
         if ($this->cache && is_string($this->cache)) {
             $this->cache = $app->make($this->cache);
         }
+
+        $this->enabledStorage = @$this->config['enabled_storage'];
+        $this->defaultStorage = @$this->config['default_storage'];
     }
 
     public function rebuildCache($progressCallback = null, $dir = null)
@@ -174,41 +181,22 @@ class ImageServer
      */
     public function getImageUrl($path, $width = null, $height = null, $mode = null, $protocol = 'http')
     {
-        if (empty($path)) {
-            return '';
-        }
-
-        if ($width || $height || $mode) {
-            // 如果是有完整域名的URL，则直接返回
-            if (preg_match('#^http(s?)://(?<host>[^/]+)/(?<path>.*)#', $path, $matches)) {
-                if (!in_array($matches['host'], (array)$this->app['config']['flex_image.img_server_host_aliases'])) {
-                    return $path;
-                }
-            }
-
-            if (preg_match('#^' .
-                'http(s?)://[^/]+/' .
-                '(?<baseName>.*)' .
-                '(_(?<width>\d+)x(?<height>\d+))?' .
-                '(_c(?<crop>\d+))?' .
-                '\.(?<extName>jpg|jpeg|png|gif|bmp)' .
-                '$#i', $path, $matches)) {
-                $path = sprintf('%s_%dx%d_c%d.%s', $matches['baseName'], $width, $height, $mode, $matches['extName']);
-            } elseif (preg_match('#^' .
-                '(?<baseName>.*)' .
-                '(_(?<width>\d+)x(?<height>\d+))?' .
-                '(_c(?<crop>\d+))?' .
-                '\.(?<extName>jpg|jpeg|png|gif|bmp)' .
-                '$#i', $path, $matches)) {
-                $path = sprintf('%s_%dx%d_c%d.%s', $matches['baseName'], $width, $height, $mode, $matches['extName']);
-            }
-        }
-
-        if ($this->host) {
-            return $protocol . '://' . $this->host . ($path[0] == '/' ? '' : '/') . $path;
+        if (preg_match('~^(?<schema>[a-zA-Z0-9-_]+)://~', $path, $matches)){
+            $schema = $matches['schema'];
         } else {
-            return ($path[0] == '/' ? '' : '/') . $path;
+            $schema = $this->defaultStorage;
         }
+
+        // 无法识别的协议类型，则就用默认的存储方式进行解析
+        if (!isset($this->enabledStorage[$schema])){
+            reset($this->enabledStorage);
+            $schema = key($this->enabledStorage);
+        }
+
+        $storage = $this->app->make($this->enabledStorage[$schema]);
+        $storage->config($this->config);
+
+        return $storage->getImageUrl($path, $width, $height, $mode, $protocol);
     }
 
     public function getAvailableCropModes()

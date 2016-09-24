@@ -85,10 +85,7 @@ class FlexImageController extends Controller
             case 'POST':
                 try {
                     $uploader = new ImageUploader([
-                        'imageHost' => $this->app['config']['flex_image.img_server_host'] ?: $request->getHost(),
-                        'maxFileSize' => $this->app['config']['flex_image.max_upload_size'],
-                        'uploadDir' => $this->imageServer->getUploadDir(),
-                        'siteBaseDir' => $this->imageServer->getSiteBaseDir(),
+                        'config' => $this->app['config']['flex_image'],
                         'shortcutFile' => function ($file) {
                             return $this->imageServer->getSameFile($file);
                         },
@@ -104,7 +101,6 @@ class FlexImageController extends Controller
                         'message' => '上传成功！',
                         'status' => 100,
                         'data' => $imgInfo,
-//                        'uploader' => $uploader->getParams(),
                     ]);
                 } catch (ImageException $e) {
                     return $this->responseFactory->json([
