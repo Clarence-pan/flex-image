@@ -74,34 +74,55 @@ class ImageUploader
             throw new ImageException('没有找到上传的图片！', 404);
         }
 
-        foreach ($files as $file) {
-            if (empty($file['name'])) {
+        foreach ($files as $field => $phpFile) {
+            if (empty($phpFile['name'])) {
                 continue; // 忽略无效的文件
             }
 
-            $extName = ImageUtils::getFileExt($file['name']);
-            if (!in_array($extName, $this->allowedFileExtNames)) {
-                throw new ImageException('您上传的图片格式不支持，请上传 ' . implode(', ', $this->allowedFileExtNames) . ' 格式的图片。');
+            if (!is_array($phpFile['name'])){
+                $phpFiles = [$phpFile];
+            } else {
+                $phpFiles = [];
+                foreach ($phpFile['name'] as $i => $name) {
+                    $phpFiles[] = [
+                        'name' => $name,
+                        'size' => $phpFile['size'][$i],
+                        'error' => $phpFile['error'][$i],
+                        'tmp_name' => $phpFile['tmp_name'][$i],
+                    ];
+                }
             }
 
-            if ($file['size'] > $this->maxFileSize) {
-                throw new ImageException('您上传的图片太大了，请换个小一点的。', 412);
-            }
+            foreach ($phpFiles as $file) {
+                if (empty($file['name'])) {
+                    continue; // 忽略无效的文件
+                }
 
-            if (!empty($file['error'])) {
-                throw new ImageException($this->getPhpFileErrorMessage($file['error']), 430);
-            }
+                $extName = ImageUtils::getFileExt($file['name']);
+                if (!in_array($extName, $this->allowedFileExtNames)) {
+                    throw new ImageException('您上传的图片格式不支持，请上传 ' . implode(', ', $this->allowedFileExtNames) . ' 格式的图片。');
+                }
 
-            if (!is_uploaded_file($file['tmp_name'])) {
-                throw new ImageException('囧，上传的图片文件找不到了，请稍后再试或联系管理员。', 411);
-            }
+                if ($file['size'] > $this->maxFileSize) {
+                    throw new ImageException('您上传的图片太大了，请换个小一点的。', 412);
+                }
 
-            $this->uploadedImages[] = [
-                'originalName' => $file['name'],
-                'fileSize' => $file['size'],
-                'tempFile' => $file['tmp_name'],
-                'extName' => $extName,
-            ];
+                if (!empty($file['error'])) {
+                    throw new ImageException($this->getPhpFileErrorMessage($file['error']), 430);
+                }
+
+                if (!is_uploaded_file($file['tmp_name'])) {
+                    throw new ImageException('囧，上传的图片文件找不到了，请稍后再试或联系管理员。', 411);
+                }
+
+                $this->uploadedImages[] = [
+                    'field' => $field,
+                    'originalName' => $file['name'],
+                    'fileSize' => $file['size'],
+                    'tempFile' => $file['tmp_name'],
+                    'extName' => $extName,
+                ];
+            }
         }
 
         if (empty($this->uploadedImages)) {
