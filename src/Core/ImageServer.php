@@ -157,7 +157,7 @@ class ImageServer
 
     public function getSiteBaseDir()
     {
-        return $this->siteBaseDir ? : ($this->siteBaseDir = $this->app->make('path') . str_replace('/', DIRECTORY_SEPARATOR, '/../public'));
+        return $this->siteBaseDir ? : ($this->siteBaseDir = dirname($this->app->make('path')) . str_replace('/', DIRECTORY_SEPARATOR, '/public'));
     }
 
     /**
