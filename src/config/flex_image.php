@@ -58,10 +58,12 @@ return [
         'secret_key' => env('QINIU_CDN_SECRET_KEY'),
         'bucket' => env('QINIU_CDN_DEFAULT_BUCKET'),
         'access_domain' => env('QINIU_CDN_ACCESS_DOMAIN'),
+        'omit_schema_in_path' => false,
     ],
 
     'file' => [
         'upload_dir' => app()->basePath() . '/public/uploads',
         'site_base_dir' => app()->basePath() . '/public',
+        'omit_schema_in_path' => false,
     ]
 ];

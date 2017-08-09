@@ -18,6 +18,8 @@ class LocalFileStorage implements AbstractStorage
     protected $imageHost = '';
     protected $imageHostAlias = [];
 
+    protected $omitSchemaInPath = false;
+
     const SCHEMA = 'file';
 
     /**
@@ -43,6 +45,7 @@ class LocalFileStorage implements AbstractStorage
 
         $this->imageHost = $config['img_server_host'] ?: app()->request->getHost();
         $this->imageHostAlias = $config['img_server_host_aliases'];
+        $this->omitSchemaInPath = !empty($config[self::SCHEMA]['omit_schema_in_path']);
     }
 
     /**
@@ -76,7 +79,7 @@ class LocalFileStorage implements AbstractStorage
         }
 
         return [
-            'path' => self::SCHEMA . '://' . $filePath,
+            'path' => ($this->omitSchemaInPath ? '' : (self::SCHEMA . '://')) . $filePath,
             'url' => $this->imageHost ? 'http://' . $this->imageHost . $filePath : $filePath,
             'fullPath' => $fileFullPath,
         ];

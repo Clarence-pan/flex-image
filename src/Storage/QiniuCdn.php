@@ -18,6 +18,8 @@ class QiniuCdn implements AbstractStorage
     protected $bucket;
     protected $accessDomain;
 
+    protected $omitSchemaInPath = false;
+
     const SCHEMA = 'qiniu-cdn';
 
     /**
@@ -34,6 +36,7 @@ class QiniuCdn implements AbstractStorage
         $this->secretKey = $config[self::SCHEMA]['secret_key'];
         $this->bucket = $config[self::SCHEMA]['bucket'];
         $this->accessDomain = $config[self::SCHEMA]['access_domain'];
+        $this->omitSchemaInPath = !empty($config[self::SCHEMA]['omit_schema_in_path']);
     }
 
     public function getSchema()
@@ -67,7 +70,7 @@ class QiniuCdn implements AbstractStorage
         }
 
         return [
-            'path' => self::SCHEMA . '://' . $ret['key'],
+            'path' =>  ($this->omitSchemaInPath ? '' : (self::SCHEMA . '://')) . $ret['key'],
             'url' => (@$options['protocol'] ?: 'http') . '://' . $this->accessDomain . '/' . $ret['key'],
         ];
     }
