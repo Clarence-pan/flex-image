@@ -49,7 +49,12 @@ class ImageCroper
         } catch (\ImagickException $e) {
         }
 
-        $im->writeImage($saveToImageFile);
+        if (is_resource($saveToImageFile)){
+            $im->writeImageFile($saveToImageFile);
+        } else {
+            $im->writeImage($saveToImageFile);
+        }
+
     }
 
     /**

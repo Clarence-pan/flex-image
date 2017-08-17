@@ -11,6 +11,8 @@ use FlexImage\Core\ImageUploader;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Routing\ResponseFactory;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesser;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -68,9 +70,24 @@ class FlexImageController extends Controller
 
         try {
             $imageCroper = new ImageCroper();
-            $imageCroper->cropFile($originalFile, $actualFile, $matches['width'], $matches['height'], $matches['crop']);
 
-            return new ImageFileResponse($actualFile);
+            try {
+                $imageCroper->cropFile($originalFile, $actualFile, $matches['width'], $matches['height'], $matches['crop']);
+
+                return new ImageFileResponse($actualFile);
+            } catch (\ImagickException $e){
+                $tmpFile = fopen('php://memory', 'rw');
+                $imageCroper->cropFile($originalFile, $tmpFile, $matches['width'], $matches['height'], $matches['crop']);
+                rewind($tmpFile);
+
+                $response = new Response();
+                $response->headers->set('Content-Type', MimeTypeGuesser::getInstance()->guess($originalFile));
+                $response->setContent(stream_get_contents($tmpFile));
+
+                fclose($tmpFile);
+
+                return $response;
+            }
         } catch (ImageException $e) {
             return $this->responseFactory->make($e->getMessage(), $e->getCode());
         }
