@@ -163,6 +163,6 @@ class FlexImageController extends Controller
      */
     protected function getSupportedImageTypes($withContentType = false)
     {
-        return ['png', 'jpg', 'gif'];
+        return ['png', 'jpg', 'jpeg', 'gif'];
     }
 }
